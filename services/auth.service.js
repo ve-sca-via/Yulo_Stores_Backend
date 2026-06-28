@@ -32,5 +32,5 @@ export const blacklistToken = async (token) => {
   const decoded = jwt.decode(token);
   if (!decoded?.exp) return;
   const ttl = decoded.exp - Math.floor(Date.now() / 1000);
-  if (ttl > 0) await redis.set(`blacklist:${token}`, '1', 'EX', ttl);
+  if (redis && ttl > 0) await redis.set(`blacklist:${token}`, '1', 'EX', ttl);
 };

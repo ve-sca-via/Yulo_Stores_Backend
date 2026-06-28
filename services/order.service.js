@@ -19,7 +19,7 @@ export const createOrder = async ({
   idempotencyKey,
 }) => {
   // Step 0 — Idempotency check
-  if (idempotencyKey) {
+  if (idempotencyKey && redis) {
     const cached = await redis.get(`idem:${idempotencyKey}:${restaurantId}`);
     if (cached) return { orderId: cached, duplicate: true };
   }
@@ -88,7 +88,7 @@ export const createOrder = async ({
       $push: { orders: order._id },
     });
 
-    if (idempotencyKey) {
+    if (idempotencyKey && redis) {
       await redis.set(
         `idem:${idempotencyKey}:${restaurantId}`,
         order._id.toString(),
@@ -115,7 +115,7 @@ export const createOrder = async ({
     deliveryAddress,
   });
 
-  if (idempotencyKey) {
+  if (idempotencyKey && redis) {
     await redis.set(
       `idem:${idempotencyKey}:${restaurantId}`,
       order._id.toString(),

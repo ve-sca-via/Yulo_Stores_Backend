@@ -8,6 +8,7 @@ import { getIO } from '../socket.js';
 import logger from '../utils/logger.js';
 
 export const trackVisitor = async ({ restaurantId, sessionId, userId, cartItems, intentScore }) => {
+  if (!redis) return;
   const key = `live:visitor:${restaurantId}:${sessionId}`;
   await redis.hset(key, {
     userId: userId || '',
@@ -20,6 +21,7 @@ export const trackVisitor = async ({ restaurantId, sessionId, userId, cartItems,
 };
 
 export const getActiveVisitors = async (restaurantId) => {
+  if (!redis) return { visitors: [], count: 0 };
   const keys = await redis.keys(`live:visitor:${restaurantId}:*`);
 
   if (!keys.length) return { visitors: [], count: 0 };
@@ -57,8 +59,8 @@ export const getStats = async (restaurantId) => {
   const [openSessions, pendingOrders, countRaw, gmvRaw] = await Promise.all([
     TableSession.countDocuments({ restaurantId, status: 'open' }),
     Order.countDocuments({ restaurantId, status: { $in: ['placed', 'confirmed', 'preparing'] } }),
-    redis.get(`live:count:${restaurantId}`),
-    redis.get(`live:gmv:${restaurantId}:${today}`),
+    redis ? redis.get(`live:count:${restaurantId}`) : null,
+    redis ? redis.get(`live:gmv:${restaurantId}:${today}`) : null,
   ]);
 
   return {
@@ -71,6 +73,7 @@ export const getStats = async (restaurantId) => {
 };
 
 export const updateGMV = async (restaurantId, amount) => {
+  if (!redis) return;
   const today = new Date().toISOString().slice(0, 10);
   const key = `live:gmv:${restaurantId}:${today}`;
   await redis.incrbyfloat(key, amount);

@@ -12,7 +12,7 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   }
   const token = header.slice(7);
 
-  const revoked = await redis.get(`blacklist:${token}`);
+  const revoked = redis ? await redis.get(`blacklist:${token}`) : null;
   if (revoked !== null) {
     throw new ApiError(401, 'INVALID_TOKEN', 'Token has been revoked');
   }
