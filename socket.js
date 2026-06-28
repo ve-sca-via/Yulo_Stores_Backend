@@ -40,7 +40,7 @@ export function initSocket(httpServer) {
       if (!owns) return socket.disconnect();
       socket.join(`restaurant:${restaurantId}`);
       socket.data.restaurantId = restaurantId;
-      await redis.sadd('live:active_restaurants', restaurantId);
+      if (redis) await redis.sadd('live:active_restaurants', restaurantId);
     });
 
     socket.on('join_kitchen', async ({ restaurantId, staffToken }) => {
@@ -71,13 +71,14 @@ export function initSocket(httpServer) {
       if (socket.data.restaurantId) {
         const room = io.sockets.adapter.rooms.get(`restaurant:${socket.data.restaurantId}`);
         if (!room || room.size === 0) {
-          await redis.srem('live:active_restaurants', socket.data.restaurantId);
+          if (redis) await redis.srem('live:active_restaurants', socket.data.restaurantId);
         }
       }
     });
   });
 
   setInterval(async () => {
+    if (!redis) return;
     const ids = await redis.smembers('live:active_restaurants');
     for (const restaurantId of ids) {
       const stats = await liveMonitorService.getStats(restaurantId);
