@@ -3,6 +3,7 @@ import Discount from '../../models/Discount.js';
 import { ApiError } from '../../utils/ApiError.js';
 import { sendSuccess } from '../../utils/ApiResponse.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
+import { uploadBuffer, deleteImage } from '../../services/upload.service.js';
 
 // Base fields without refine — extend first, then refine per branch (Zod v4 requirement)
 const baseFields = {
@@ -47,18 +48,47 @@ export const list = asyncHandler(async (req, res) => {
 
 export const create = asyncHandler(async (req, res) => {
   const data = validate(req.body);
-  const discount = await Discount.create({ ...data, restaurantId: req.restaurant._id });
+
+  let imageUrl = null;
+  let imagePublicId = null;
+  if (req.file) {
+    const uploaded = await uploadBuffer({
+      buffer: req.file.buffer,
+      folder: `yulostores/discounts/${req.restaurant._id}`,
+      publicId: `discount_${Date.now()}`,
+    });
+    imageUrl = uploaded.secureUrl;
+    imagePublicId = uploaded.publicId;
+  }
+
+  const discount = await Discount.create({ ...data, restaurantId: req.restaurant._id, imageUrl, imagePublicId });
   sendSuccess(res, 201, 'Discount created', { discount });
 });
 
 export const update = asyncHandler(async (req, res) => {
   const data = validate(req.body);
-  const discount = await Discount.findOneAndUpdate(
-    { _id: req.params.dId, restaurantId: req.restaurant._id },
-    { $set: data },
+
+  const existing = await Discount.findOne({ _id: req.params.dId, restaurantId: req.restaurant._id }).lean();
+  if (!existing) throw new ApiError(404, 'NOT_FOUND', 'Discount not found');
+
+  let imageUrl = existing.imageUrl;
+  let imagePublicId = existing.imagePublicId;
+  if (req.file) {
+    if (imagePublicId) await deleteImage(imagePublicId);
+    const uploaded = await uploadBuffer({
+      buffer: req.file.buffer,
+      folder: `yulostores/discounts/${req.restaurant._id}`,
+      publicId: `discount_${Date.now()}`,
+    });
+    imageUrl = uploaded.secureUrl;
+    imagePublicId = uploaded.publicId;
+  }
+
+  const discount = await Discount.findByIdAndUpdate(
+    existing._id,
+    { $set: { ...data, imageUrl, imagePublicId } },
     { new: true }
   );
-  if (!discount) throw new ApiError(404, 'NOT_FOUND', 'Discount not found');
   sendSuccess(res, 200, 'Discount updated', { discount });
 });
 
@@ -68,6 +98,7 @@ export const remove = asyncHandler(async (req, res) => {
     restaurantId: req.restaurant._id,
   });
   if (!discount) throw new ApiError(404, 'NOT_FOUND', 'Discount not found');
+  if (discount.imagePublicId) await deleteImage(discount.imagePublicId);
   sendSuccess(res, 200, 'Discount deleted', null);
 });
 

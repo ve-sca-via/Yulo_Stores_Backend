@@ -23,6 +23,8 @@ const discountSchema = new mongoose.Schema(
     startDate: { type: Date },
     endDate: { type: Date },
     status: { type: String, enum: ['draft', 'active', 'expired'], default: 'draft' },
+    imageUrl: { type: String, default: null },
+    imagePublicId: { type: String, default: null },
   },
   { timestamps: true }
 );
