@@ -1,9 +1,19 @@
+import multer from 'multer';
 import { ApiError } from '../utils/ApiError.js';
 import logger from '../utils/logger.js';
 
 // eslint-disable-next-line no-unused-vars
 export const errorHandler = (err, req, res, next) => {
   logger.error({ err, url: req.url, method: req.method });
+
+  if (err instanceof multer.MulterError) {
+    const isTooBig = err.code === 'LIMIT_FILE_SIZE';
+    return res.status(isTooBig ? 413 : 400).json({
+      status: 'error',
+      code: isTooBig ? 'FILE_TOO_LARGE' : 'UPLOAD_ERROR',
+      message: isTooBig ? 'File size exceeds the allowed limit' : err.message,
+    });
+  }
 
   if (err instanceof ApiError) {
     return res.status(err.statusCode).json({

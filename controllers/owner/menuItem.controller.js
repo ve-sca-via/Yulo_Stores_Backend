@@ -139,6 +139,57 @@ export const toggle = asyncHandler(async (req, res) => {
   sendSuccess(res, 200, 'Availability toggled', { isAvailable: item.isAvailable });
 });
 
+export const createAddon = asyncHandler(async (req, res) => {
+  const item = await MenuItem.findOne({ _id: req.params.itemId, restaurantId: req.restaurant._id });
+  if (!item) throw new ApiError(404, 'NOT_FOUND', 'Menu item not found');
+
+  const { name, foodType, quantity, unit, price } = req.body;
+  if (!name || !price) throw new ApiError(400, 'VALIDATION_ERROR', 'name and price are required');
+
+  const addon = {
+    name,
+    foodType: foodType || 'veg',
+    quantity: Number(quantity) || 1,
+    unit: unit || 'Piece',
+    price: Number(price),
+  };
+
+  if (req.file) {
+    try {
+      const { secureUrl, publicId } = await uploadService.uploadBuffer({
+        buffer: req.file.buffer,
+        folder: `yulostores/addons/${req.restaurant._id}`,
+        publicId: `addon_${Date.now()}`,
+      });
+      addon.image = secureUrl;
+      addon.imagePublicId = publicId;
+    } catch (uploadErr) {
+      throw new ApiError(500, 'UPLOAD_FAILED', uploadErr?.message ?? 'Image upload failed');
+    }
+  }
+
+  item.addons.push(addon);
+  await item.save();
+
+  const created = item.addons[item.addons.length - 1];
+  sendSuccess(res, 201, 'Add-on created', { addon: created });
+});
+
+export const deleteAddon = asyncHandler(async (req, res) => {
+  const item = await MenuItem.findOne({ _id: req.params.itemId, restaurantId: req.restaurant._id });
+  if (!item) throw new ApiError(404, 'NOT_FOUND', 'Menu item not found');
+
+  const addon = item.addons.id(req.params.addonId);
+  if (!addon) throw new ApiError(404, 'NOT_FOUND', 'Add-on not found');
+
+  if (addon.imagePublicId) await uploadService.deleteImage(addon.imagePublicId).catch(() => {});
+
+  addon.deleteOne();
+  await item.save();
+
+  sendSuccess(res, 200, 'Add-on deleted', null);
+});
+
 export const updateIngredients = asyncHandler(async (req, res) => {
   const { ingredients } = req.body;
   const item = await MenuItem.findOneAndUpdate(

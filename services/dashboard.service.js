@@ -15,7 +15,7 @@ export const getKPIs = async (restaurantId) => {
       { $match: { restaurantId: rid, paymentStatus: 'paid', createdAt: { $gte: today } } },
       { $group: { _id: null, total: { $sum: '$subtotal' } } },
     ]),
-    redis.get(`live:count:${restaurantId}`),
+    redis ? redis.get(`live:count:${restaurantId}`) : null,
     Restaurant.findById(restaurantId).select('avgRating totalRatings').lean(),
   ]);
 

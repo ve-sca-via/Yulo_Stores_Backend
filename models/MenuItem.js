@@ -14,6 +14,16 @@ const menuItemSchema = new mongoose.Schema(
     discountedPrice: { type: Number, default: null },
     ingredients: [String],
     isAvailable: { type: Boolean, default: true },
+    addons: [{
+      name: { type: String, required: true },
+      foodType: { type: String, enum: ['veg', 'non_veg', 'egg'], default: 'veg' },
+      quantity: { type: Number, default: 1 },
+      unit: { type: String, default: 'Piece' },
+      price: { type: Number, required: true },
+      image: { type: String, default: null },
+      imagePublicId: { type: String, default: null },
+      isAvailable: { type: Boolean, default: true },
+    }],
   },
   { timestamps: true }
 );
